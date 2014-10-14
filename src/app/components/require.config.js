@@ -42,6 +42,7 @@ require.config({
     elasticjs:                '../vendor/elasticjs/elastic-angular-client',
     solrjs:                   '../vendor/solrjs/solr-angular-client',
     d3:                       '../vendor/d3',
+    jsPanel:                  '../vendor/jsPanel/jquery.jspanel'
   },
   shim: {
     underscore: {
@@ -89,6 +90,7 @@ require.config({
     datepicker:             ['jquery', 'bootstrap'],
 
     elasticjs:              ['angular', '../vendor/elasticjs/elastic'],
-    solrjs:                 ['angular', '../vendor/solrjs/solr']
+    solrjs:                 ['angular', '../vendor/solrjs/solr'],
+    jsPanel:                ['jquery', 'jquery-ui', 'bootstrap']
   }
 });

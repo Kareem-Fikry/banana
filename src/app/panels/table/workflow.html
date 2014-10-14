@@ -2,9 +2,7 @@
   <div class="span4">
     <form class="input-append">
       <h6>Add Workflow</h6>
-      <!-- <input bs-typeahead="fields.list" type="text" class="input-small" ng-model='newfield'>
-      <button class="btn" ng-click="toggle_field(newfield);newfield=''"><i class="icon-plus"></i></button> -->
-      <select class="input-medium" ng-model="panel.workflow.action" ng-options="w for w in ['Lookup Hive Data']"></select>
+      <select class="input-medium" ng-init="panel.workflow.action = 'Lookup Hive Data'" ng-model="panel.workflow.action" ng-options="w for w in ['Lookup Hive Data']"></select>
       <button class="btn" style="margin-left:0px;"><i class="icon-plus"></i></button>
     </form>
   </div>

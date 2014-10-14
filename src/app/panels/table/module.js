@@ -22,16 +22,17 @@ define([
   'app',
   'underscore',
   'kbn',
-  'moment'
+  'moment',
+  'jsPanel'
   // 'text!./pagination.html',
   // 'text!partials/querySelect.html'
 ],
-function (angular, app, _, kbn, moment) {
+function (angular, app, _, kbn, moment, jsPanel) {
   'use strict';
 
   var module = angular.module('kibana.panels.table', []);
   app.useModule(module);
-  module.controller('table', function($rootScope, $scope, $http, $window, fields, querySrv, dashboard, filterSrv) {
+  module.controller('table', function($rootScope, $scope, $http, $compile, $window, $q, fields, querySrv, dashboard, filterSrv) {
     $scope.panelMeta = {
       modals : [
         {
@@ -73,6 +74,12 @@ function (angular, app, _, kbn, moment) {
         query       : '*:*',
         basic_query : '',
         custom      : ''
+      },
+      workflow: {
+        title     : 'Hive Query',
+        execute   : 'select * from users',
+        statusdir : 'bananaOut',
+        interval  : 3000
       },
       size    : 100, // Per page
       pages   : 5,   // Pages available
@@ -390,21 +397,70 @@ function (angular, app, _, kbn, moment) {
 
     $scope.run_workflow = function(field, value) {
       console.log('field =',field,'value =',value,'workflow.action =',$scope.panel.workflow.action,'workflow.title=',$scope.panel.workflow.title);
-      $window.open('app/panels/table/lookuphive.html');
 
+      $scope.jsPanelList = ['Hello', 'Zerbew', 'Zerbew Style!'];
+
+      var panel = $.jsPanel({
+        title:     "Hive Query",
+        theme:     "primary",
+        draggable: 'disabled',
+      });
+
+      var template = '<tip>Test</tip>';
+      var element = $compile(template)($rootScope);
+
+      var query = 'select * from users';
+
+      var deferred = $q.defer();
+      
       $http({
-        method: 'GET',
-        url: 'http://localhost:50111',
-        params: {'value': value}
-      })
-      .success(function(data) {
-        console.log('http success');
+        method: 'POST',
+        url: 'http://localhost:50111/templeton/v1/hive',
+        data: $.param({
+          'user.name': 'hue',
+          'statusdir': $scope.panel.workflow.statusdir,
+          'execute': query,
+        }),
+        headers: {
+          "Content-Type": 'application/x-www-form-urlencoded'
+        }
+      }).then(function(result){
+          deferred.resolve(result.data.id); // to send job_id directly to the next stage
+      }, function(error){
+          deferred.reject(error);
+      });
 
-      })
-      .error(function(data) {
-        console.log('http error');
-        // $window.alert('http error');
+      var promise = deferred.promise;
 
+      promise.then(function(data){
+          var q = 'http://localhost:50111/templeton/v1/jobs/' + data;
+          var jobState, jobComplete;
+
+          var job_interval = setInterval(function(){
+              $http.get(q).then(function(result){
+                jobState = result.data.status.state;
+                jobComplete = result.data.status.jobComplete;
+
+                if(jobComplete) {
+                  // either success or error
+                  clearInterval(job_interval);
+
+                  var downloadQuery = 'http://localhost:50070/webhdfs/v1/user/hue/' + $scope.panel.workflow.statusdir + '/stdout?op=OPEN'
+                  $http.get(downloadQuery).then(function(result){
+                    panel.content.append(result.data);
+                    console.log(result);
+                  }, function(error){
+                    console.log(error);
+                  });
+                }
+              }, function(error){
+                console.log(error);
+              })
+          }, $scope.panel.workflow.interval);
+
+          console.log('promise success', data);
+      }, function(error){
+          console.log('promise failed', error);
       });
     }
   });
