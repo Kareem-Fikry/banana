@@ -7,6 +7,6 @@ define([
   './querySrv',
   './timer',
   './panelMove',
-  // './hadoopSrv'
+  './hadoopSrv'
 ],
 function () {});

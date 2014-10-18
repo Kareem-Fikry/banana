@@ -32,7 +32,7 @@ function (angular, app, _, kbn, moment, jsPanel) {
 
   var module = angular.module('kibana.panels.table', []);
   app.useModule(module);
-  module.controller('table', function($rootScope, $scope, $http, $compile, $window, $q, fields, querySrv, dashboard, filterSrv) {
+  module.controller('table', function($rootScope, $scope, $http, $timeout, $window, $q, fields, querySrv, dashboard, filterSrv, hadoopSrv) {
     $scope.panelMeta = {
       modals : [
         {
@@ -396,72 +396,59 @@ function (angular, app, _, kbn, moment, jsPanel) {
     };
 
     $scope.run_workflow = function(field, value) {
+      // http://plnkr.co/edit/kNKNvEZsv1ChQejO90T6?p=preview
       console.log('field =',field,'value =',value,'workflow.action =',$scope.panel.workflow.action,'workflow.title=',$scope.panel.workflow.title);
-
-      $scope.jsPanelList = ['Hello', 'Zerbew', 'Zerbew Style!'];
 
       var panel = $.jsPanel({
         title:     "Hive Query",
         theme:     "primary",
-        draggable: 'disabled',
+        // draggable: 'disabled',
+        content:  "<div style='margin: 0 auto;width: 214px;'><img src='img/processing.gif'></div>"
       });
 
-      var template = '<tip>Test</tip>';
-      var element = $compile(template)($rootScope);
+      var template = angular.element('<div ng-repeat="item in jsPanelList">{{item}}</div>');
+      panel.content.append(template);
+
+      var injector = panel.injector();
+
+      var divs = panel.content.children();
+      var newDiv = angular.element(divs[divs.length - 1]);
+
+      var scope = newDiv.scope();
+      scope.jsPanelList = ['Hello', 'Item2', 'Item3'];
+
+      var compile = injector.get('$compile');
+      compile(newDiv)(scope);
+
+      $timeout(function() {
+        scope.$apply();
+      });
 
       var query = 'select * from users';
 
-      var deferred = $q.defer();
-      
-      $http({
-        method: 'POST',
-        url: 'http://localhost:50111/templeton/v1/hive',
-        data: $.param({
-          'user.name': 'hue',
-          'statusdir': $scope.panel.workflow.statusdir,
-          'execute': query,
-        }),
-        headers: {
-          "Content-Type": 'application/x-www-form-urlencoded'
-        }
-      }).then(function(result){
-          deferred.resolve(result.data.id); // to send job_id directly to the next stage
-      }, function(error){
-          deferred.reject(error);
+      var params = {
+        'user_name': 'hue',
+        'statusdir': $scope.panel.workflow.statusdir,
+        'query'    : query
+      }
+
+      hadoopSrv.getHiveJob(params)
+        .then(function (result) {
+          params = {
+            'id'       : result,
+            'interval' : $scope.panel.workflow.interval
+          };
+          return hadoopSrv.getJobState(params);
+      }).then(function (result) {
+          params = {
+            'statusdir': $scope.panel.workflow.statusdir,
+            'isOutput' : result.isOutput
+          };
+          return hadoopSrv.getOutputFile(params);
+      }).then(function (result) {
+          console.log(result);
       });
 
-      var promise = deferred.promise;
-
-      promise.then(function(data){
-          var q = 'http://localhost:50111/templeton/v1/jobs/' + data;
-          var jobState, jobComplete;
-
-          var job_interval = setInterval(function(){
-              $http.get(q).then(function(result){
-                jobState = result.data.status.state;
-                jobComplete = result.data.status.jobComplete;
-
-                if(jobComplete) {
-                  // either success or error
-                  clearInterval(job_interval);
-
-                  var downloadQuery = 'http://localhost:50070/webhdfs/v1/user/hue/' + $scope.panel.workflow.statusdir + '/stdout?op=OPEN'
-                  $http.get(downloadQuery).then(function(result){
-                    panel.content.append(result.data);
-                    console.log(result);
-                  }, function(error){
-                    console.log(error);
-                  });
-                }
-              }, function(error){
-                console.log(error);
-              })
-          }, $scope.panel.workflow.interval);
-
-          console.log('promise success', data);
-      }, function(error){
-          console.log('promise failed', error);
-      });
     }
   });
 
