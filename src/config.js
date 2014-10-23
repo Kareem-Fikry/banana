@@ -33,7 +33,9 @@ function (Settings) {
      */
     solr: "http://localhost:8983/solr/",
     solr_core: "logstash_logs",
-
+    hive_webhcat_server: "http://localhost:50111",
+    hive_webhcat_user: "hue",
+    webhdfs_namenode_server: "http://localhost:50070",
     /**
      * The default Solr index to use for storing objects internal to Banana, such as 
      * stored dashboards. If you have been using a collection named kibana-int 

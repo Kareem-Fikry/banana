@@ -87,7 +87,7 @@
                     <i class='icon-ban-circle pointer' ng-click="build_search(key,value,true)" bs-tooltip="'Add filter to NOT match this value'"></i>
                     <i class="pointer icon-th" ng-click="toggle_field(key)" bs-tooltip="'Toggle table column'"></i>
                     <!-- Worlflow actions -->
-                    <i class="pointer icon-play" ng-click="run_workflow(key,value)" bs-tooltip="'Workflow action'"></i>
+                    <i class="pointer icon-play" ng-click="run_workflow(key,value, event)" bs-tooltip="'Workflow action'"></i>
                   </td>
                   <!-- At some point we need to create a more efficient way of applying the filter pipeline -->
                   <td style="white-space:pre-wrap" ng-bind-html-unsafe="value|noXml|urlLink|stringify"></td>

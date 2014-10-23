@@ -71,7 +71,11 @@ define([
 			var deferred = $q.defer();
 
 			$http.get(query).then(function (result){
-				deferred.resolve(result);
+				var response = {
+					'data': result.data,
+					'isOutput': params.isOutput 
+				};
+				deferred.resolve(response);
 			}, function (error){
 				deferred.reject(error);
 			});

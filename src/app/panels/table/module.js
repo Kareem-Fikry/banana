@@ -77,7 +77,7 @@ function (angular, app, _, kbn, moment, jsPanel) {
       },
       workflow: {
         title     : 'Hive Query',
-        execute   : 'select * from users',
+        execute   : 'select * from users where swid = ',
         statusdir : 'bananaOut',
         interval  : 3000
       },
@@ -395,39 +395,22 @@ function (angular, app, _, kbn, moment, jsPanel) {
       return obj;
     };
 
-    $scope.run_workflow = function(field, value) {
-      // http://plnkr.co/edit/kNKNvEZsv1ChQejO90T6?p=preview
+    $scope.run_workflow = function(field, value, entry) {
       console.log('field =',field,'value =',value,'workflow.action =',$scope.panel.workflow.action,'workflow.title=',$scope.panel.workflow.title);
 
       var panel = $.jsPanel({
-        title:     "Hive Query",
-        theme:     "primary",
-        // draggable: 'disabled',
-        content:  "<div style='margin: 0 auto;width: 214px;'><img src='img/processing.gif'></div>"
+        title      : "Initialize Hive Job",
+        theme      : "primary",
+        content    : "<div style='margin: 0 auto;'><center><h5>Initializing Hive Map Reduce Job</h5><img src='img/processing.gif'></center></div>",
+        overflow   : "scroll",
+        position   : "center",
+        size       : {width: 480, height: 360}
       });
 
-      var template = angular.element('<div ng-repeat="item in jsPanelList">{{item}}</div>');
-      panel.content.append(template);
-
-      var injector = panel.injector();
-
-      var divs = panel.content.children();
-      var newDiv = angular.element(divs[divs.length - 1]);
-
-      var scope = newDiv.scope();
-      scope.jsPanelList = ['Hello', 'Item2', 'Item3'];
-
-      var compile = injector.get('$compile');
-      compile(newDiv)(scope);
-
-      $timeout(function() {
-        scope.$apply();
-      });
-
-      var query = 'select * from users';
+      var query = $scope.panel.workflow.execute + (entry.swid.replace('{', "'").replace('}', "'"));
 
       var params = {
-        'user_name': 'hue',
+        'user_name': dashboard.current.hadoop.hive_webhcat_user,
         'statusdir': $scope.panel.workflow.statusdir,
         'query'    : query
       }
@@ -438,6 +421,8 @@ function (angular, app, _, kbn, moment, jsPanel) {
             'id'       : result,
             'interval' : $scope.panel.workflow.interval
           };
+          panel.title('Running Map/Reduce Hive Queries');
+          panel.content.html('<div style=\'margin: 0 auto;\'><center><h5>Running Map Reduce Hive Queries</h5><img src=\'img/processing.gif\'></center></div>');
           return hadoopSrv.getJobState(params);
       }).then(function (result) {
           params = {
@@ -446,10 +431,53 @@ function (angular, app, _, kbn, moment, jsPanel) {
           };
           return hadoopSrv.getOutputFile(params);
       }).then(function (result) {
-          console.log(result);
-      });
+        panel.title('Queries Result');
+        var data =  $scope.prepareHiveData(result);
 
-    }
+        var template;
+        if(result.isOutput) {
+          template = angular.element('<table class="table table-striped"><thead><tr><th>#</th><th>Swid</th><th>Birth Date</th><th>Gender</th></tr></thead><tbody><tr ng-repeat="entry in jsPanelList"><td>{{$index + 1}}</td><td>{{entry.swid}}</td><td>{{entry.bdate}}</td><td>{{entry.gender}}</td></tr></tbody></table>');
+        } else {
+          template = angular.element('<div>{{jsPanelList}}</div>');
+        }
+        panel.content.html(template);
+
+        var injector = panel.injector();
+
+        var divs = panel.content.children();
+        var newDiv = angular.element(divs[divs.length - 1]);
+
+        var scope = newDiv.scope();
+        scope.jsPanelList = data;
+
+        var compile = injector.get('$compile');
+        compile(newDiv)(scope);
+
+        $timeout(function() {
+          scope.$apply();
+        });
+      });
+    };
+
+    $scope.prepareHiveData = function (result) {
+      var outputString = result.data.toString();
+      if(result.isOutput){
+        var results = outputString.split('\n');
+        var output = [];
+        for(var i = 0; i < results.length; i++) {
+          var entry = results[i].split('\t');
+          var row = {
+            swid  : entry[0],
+            bdate : entry[1],
+            gender: entry[2]
+          };
+          output.push(row);
+        }
+        return output;
+      } else {
+        return outputString;
+      }
+    };
   });
 
   // This also escapes some xml sequences
